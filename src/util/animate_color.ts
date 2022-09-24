@@ -1,36 +1,48 @@
-//@ts-nocheck
 import { Color } from '../color';
-import { animate } from './animate';
+import {animate, AnimationOptions, TOnAnimationChangeCallback} from './animate';
+import { TColorAlphaSource } from '../color/color.class';
 
-// Calculate an in-between color. Returns a "rgba()" string.
-// Credit: Edwin Martin <edwin@bitstorm.org>
-//         http://www.bitstorm.org/jquery/color-animation/jquery.animate-colors.js
-// const calculateColor = (begin: number[], end: number[], pos) => {
-//   const [r, g, b, _a] = begin.map((beg, index) => beg + pos * (end[index] - beg));
-//   const a = begin && end ? parseFloat(_a) : 1;
-//   return `rgba(${parseInt(r, 10)},${parseInt(g, 10)},${parseInt(b, 10)},${a})`;
-// }
+/**
+ * Calculate an in-between color with linear interpolation. Returns a "rgba()" string.
+ * Credit: Edwin Martin <edwin@bitstorm.org>
+ *         http://www.bitstorm.org/jquery/color-animation/jquery.animate-colors.js
+ * @param begin color
+ * @param end color
+ * @param pos [0, 1]
+ */
+const calculateColor = (
+  begin: TColorAlphaSource,
+  end: TColorAlphaSource,
+  pos: number
+): string => {
+  const [r, g, b, _a] = begin.map(
+    (beg, index) => beg + pos * (end[index] - beg)
+  );
+  const a = begin && end ? _a : 1;
+  return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;
+};
 
-// color animation is broken. This function pass the tests for some reasons
-// but begin and end aren't array anymore since we improved animate function
-// to handler arrays internally.
-function calculateColor(begin, end, pos) {
-  let color =
-    'rgba(' +
-    parseInt(begin[0] + pos * (end[0] - begin[0]), 10) +
-    ',' +
-    parseInt(begin[1] + pos * (end[1] - begin[1]), 10) +
-    ',' +
-    parseInt(begin[2] + pos * (end[2] - begin[2]), 10);
+/**
+ * Simplified TEasingFunction with a domain of [0, duration] and a range of [0, 1]
+ * @param currentTime
+ * @param duration
+ */
+type TColorEasingFunction = (currentTime: number, duration: number) => number;
 
-  color +=
-    ',' + (begin && end ? parseFloat(begin[3] + pos * (end[3] - begin[3])) : 1);
-  color += ')';
-  return color;
-}
 
-const defaultColorEasing = (currentTime, duration) =>
+const defaultColorEasing: TColorEasingFunction = (currentTime, duration) =>
   1 - Math.cos((currentTime / duration) * (Math.PI / 2));
+
+type TOnColorChangeCallback = TOnAnimationChangeCallback<void, string>;
+
+type TColorAnimationOptions = Omit<
+  AnimationOptions,
+  'onComplete' | 'onChange' | 'easing'
+> & {
+  onComplete: TOnColorChangeCallback;
+  onChange: TOnColorChangeCallback;
+  colorEasing: TColorEasingFunction;
+};
 
 /**
  * Changes the color from one to another within certain period of time, invoking callbacks as value is being changed.
@@ -46,15 +58,15 @@ const defaultColorEasing = (currentTime, duration) =>
  * @returns {Function} abort function
  */
 export function animateColor(
-  fromColor,
-  toColor,
+  fromColor: string,
+  toColor: string,
   duration = 500,
   {
     colorEasing = defaultColorEasing,
     onComplete,
     onChange,
     ...restOfOptions
-  } = {}
+  }: Partial<TColorAnimationOptions> = {}
 ) {
   const startColor = new Color(fromColor).getSource(),
     endColor = new Color(toColor).getSource();
@@ -65,21 +77,15 @@ export function animateColor(
     endValue: endColor,
     byValue: endColor,
     easing: (currentTime, startValue, byValue, duration) =>
-      calculateColor(startValue, byValue, colorEasing(currentTime, duration)),
+      colorEasing(currentTime, duration),
     // has to take in account for color restoring;
     onComplete: (current, valuePerc, timePerc) =>
       onComplete?.(calculateColor(endColor, endColor, 0), valuePerc, timePerc),
-    onChange: (current, valuePerc, timePerc) => {
-      if (onChange) {
-        if (Array.isArray(current)) {
-          return onChange(
-            calculateColor(current, current, 0),
-            valuePerc,
-            timePerc
-          );
-        }
-        onChange(current, valuePerc, timePerc);
-      }
-    },
+    onChange: (current, valuePerc, timePerc) =>
+      onChange?.(
+        calculateColor(startColor, endColor, valuePerc),
+        valuePerc,
+        timePerc
+      ),
   });
 }
