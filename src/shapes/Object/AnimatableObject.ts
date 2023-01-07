@@ -25,30 +25,28 @@ export abstract class AnimatableObject<
 
   /**
    * Animates object's properties
-   * @param {String|Object} property Property to animate (if string) or properties to animate (if object)
-   * @param {Number|Object} value Value to animate property to (if string was given first) or options object
+   * @param {Record} properties Property to animate (if string) or properties to animate (if object)
+   * @param {TAnimationOptions} options
    * @tutorial {@link http://fabricjs.com/fabric-intro-part-2#animation}
-   * @return {(ColorAnimation | ValueAnimation)[]} animation context (or an array if passed multiple properties)
-   *
-   * As object — multiple properties
+   * @return {(ColorAnimation | ValueAnimation | ArrayAnimation)[]} animation context (or an array if passed multiple properties)
    *
    * object.animate({ left: ..., top: ... });
    * object.animate({ left: ..., top: ... }, { duration: ... });
    */
   animate<T extends number | TColorArg>(
-    animatable: Record<string, T>,
+    properties: Record<string, T>,
     options?: Partial<TAnimationOptions<T>>
   ): (ColorAnimation | ValueAnimation | ArrayAnimation)[] {
-    return Object.entries(animatable).map(([key, endValue]) =>
+    return Object.entries(properties).map(([key, endValue]) =>
       this._animate(key, endValue, options)
     );
   }
 
   /**
    * @private
-   * @param {String} key Property to animate
-   * @param {String} to Value to animate to
-   * @param {Object} [options] Options object
+   * @param {string} key Property to animate
+   * @param {string} endValue Value to animate to
+   * @param {Partial<TAnimationOptions>} [options] Options object
    */
   _animate<T extends number | TColorArg>(
     key: string,

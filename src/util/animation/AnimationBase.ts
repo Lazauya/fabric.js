@@ -35,12 +35,12 @@ export abstract class AnimationBase<
 
   private _state: AnimationState = 'pending';
   /**
-   * Time %, or the ratio of `timeElapsed / duration`
+   * The ratio of `timeElapsed / duration`
    * @see tick
    */
-  durationProgress = 0;
+  timeProgress = 0;
   /**
-   * Value %, or the ratio of `(currentValue - startValue) / (endValue - startValue)`
+   * The ratio of `(currentValue - startValue) / (endValue - startValue)`
    */
   valueProgress = 0;
   /**
@@ -118,29 +118,29 @@ export abstract class AnimationBase<
   private tick(t: number) {
     const durationMs = (t || +new Date()) - this.startTime;
     const boundDurationMs = Math.min(durationMs, this.duration);
-    this.durationProgress = boundDurationMs / this.duration;
+    this.timeProgress = boundDurationMs / this.duration;
     const { value, changeRatio } = this.calculate(boundDurationMs);
     this.value = Array.isArray(value) ? (value.slice() as T) : value;
     this.valueProgress = changeRatio;
 
     if (this._state === 'aborted') {
       return;
-    } else if (this._abort(value, this.valueProgress, this.durationProgress)) {
+    } else if (this._abort(value, this.valueProgress, this.timeProgress)) {
       this._state = 'aborted';
       this.unregister();
     } else if (durationMs >= this.duration) {
       const endValue = this.endValue;
-      this.durationProgress = this.valueProgress = 1;
+      this.timeProgress = this.valueProgress = 1;
       this._onChange(
         (Array.isArray(endValue) ? endValue.slice() : endValue) as T,
         this.valueProgress,
-        this.durationProgress
+        this.timeProgress
       );
       this._state = 'completed';
-      this._onComplete(endValue, this.valueProgress, this.durationProgress);
+      this._onComplete(endValue, this.valueProgress, this.timeProgress);
       this.unregister();
     } else {
-      this._onChange(value, this.valueProgress, this.durationProgress);
+      this._onChange(value, this.valueProgress, this.timeProgress);
       requestAnimFrame(this.tick);
     }
   }
